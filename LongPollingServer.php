@@ -9,14 +9,14 @@ class LongPollingServer {
     private $address;
     private $allowedOrigins = array('http://t3n.local', 'http://localhost');
 
-    public function __construct($port=12345, $address='127.0.0.1')
+    public function __construct($port=12345, $address='127.0.0.1', $maxconn = SOMAXCONN)
     {
         $this->port = $port;
         $this->address = $address;
 
         $this->master = socket_create(AF_INET, SOCK_STREAM, SOL_TCP);
-        socket_bind($this->master, $this->address, $this->port) or die('Could not bind to address');
-        socket_listen($this->master, SOMAXCONN) or die('Could not listen to socket');
+        socket_bind($this->master, $this->address, $this->port) or die('Could not bind socket to address');
+        socket_listen($this->master, $maxconn) or die('Could not listen to socket');
         echo "SOCKET CREATED!\n";
     }
 
@@ -191,10 +191,11 @@ class LongPollingServer {
             }
             unset($rawHeaders[$key]);
         }
-        $return['data'] = $this->parseQueryString($return['content']);
+        $return['query'] = $this->parseQueryString($return['content']);
         return $return;
     }
 
+    /*
     private function wrap($msg="")
     {
         return chr(0) . $msg . chr(255);
@@ -204,4 +205,5 @@ class LongPollingServer {
     {
         return substr($msg, 1, strlen($msg) - 2);
     }
+     */
 }

@@ -17,6 +17,8 @@ $server = new LongPollingServer(12345);
 $chat = new LongPollingChat();
 
 $server->addListener('/chat/join', array($chat, 'join'));
+$server->addListener('/chat/get', array($chat, 'get'));
+$server->addListener('/chat/set', array($chat, 'set'));
 $server->addListener('disconnect', array($chat, 'disconnect'));
 $server->addListener('unhandledRequest', 'send404Response');
 
