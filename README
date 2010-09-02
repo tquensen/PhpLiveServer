@@ -1,0 +1,8 @@
+Ein sehr simpler Webserver für Realtime-Anwendungen via Ajax Long Polling auf PHP-Basis
+
+Requires:
+PHP5
+
+Works with all Browsers that support CORS (Cross-Origin Resource Sharing)
+Tested with Firefox 3.6, Chrome 6, Safari 4
+Does not work with Opera 10.6
