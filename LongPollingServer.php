@@ -7,7 +7,7 @@ class LongPollingServer {
     private $listeners = array();
     private $master;
     private $address;
-    private $allowedOrigins = array('http://t3n.local', 'http://localhost');
+    private $allowedOrigins = array('http://127.0.0.1', 'http://localhost');
 
     public function __construct($port=12345, $address='127.0.0.1', $maxconn = SOMAXCONN)
     {
@@ -17,6 +17,9 @@ class LongPollingServer {
         $this->master = socket_create(AF_INET, SOCK_STREAM, SOL_TCP);
         socket_bind($this->master, $this->address, $this->port) or die('Could not bind socket to address');
         socket_listen($this->master, $maxconn) or die('Could not listen to socket');
+
+        $this->addListener('OPTIONS request', array($this, 'handleOptionsRequest'));
+
         echo "SOCKET CREATED!\n";
     }
 
@@ -27,7 +30,7 @@ class LongPollingServer {
             socket_close($this->sockets[$key]);
             unset($this->sockets[$key]);
             unset($this->connections[$key]);
-            echo "CLOSE CONNECTION: ".$key."\n";
+            //echo "CLOSE CONNECTION: ".$key."\n";
         }
     }
 
@@ -46,10 +49,10 @@ class LongPollingServer {
                 }
                 $header = $this->getHeader($headerData, $sendHeader);
                 $data = $header."\n".$message;
-                echo "SENDING ($sendHeader) $message TO $key\n";
+                //echo "SENDING ($sendHeader) $message TO $key\n";
             } else {
                 $data = $message;
-                echo "SENDING $message TO $key\n";
+                //echo "SENDING $message TO $key\n";
             }
             //$message = $this->wrap($message);
             socket_write($this->sockets[$key],$data,strlen($data));
@@ -57,6 +60,11 @@ class LongPollingServer {
                 $this->disconnect($key);
             }
         }
+    }
+
+    public function handleOptionsRequest($server, $client)
+    {
+        $this->send($client, '');
     }
 
     public function addListener($event, $callable)
@@ -134,7 +142,7 @@ class LongPollingServer {
                 } else {
                     $key = array_search($socket, $this->sockets);
                     $buffer = null;
-                    $bytes = socket_recv($socket,$buffer,4096,null);
+                    $bytes = socket_recv($socket,$buffer,4096,0);
                     if (!$bytes) {
                         $this->disconnect($key);
                     } else {
@@ -151,15 +159,15 @@ class LongPollingServer {
         $this->sockets[$randomKey] = $socket;
         $this->connections[$randomKey] = array('key' => $randomKey, 'socket' => $socket);
         $this->call('connect', $randomKey);
-        echo "NEW CONNECTION: ".$randomKey."\n";
+        //echo "NEW CONNECTION: ".$randomKey."\n";
     }
 
     private function process($key, $data)
     {
         if ($data['action']) {
             $this->connections[$key]['requestHeaders'] = $data['headers'];
-            echo "PROCESSING ".$data['action']." FOR ".$key."\n";
-            if (!$this->call('request', $key, $data) && !$this->call($data['action'], $key, $data)) {
+            //echo "PROCESSING ".$data['action']." FOR ".$key."\n";
+            if (!$this->call(strtoupper($data['method']).' request', $key, $data) && !$this->call(strtoupper($data['method']).' '.$data['action'], $key, $data)) {
                 $this->call('unhandledRequest', $key, $data);
             }
 
