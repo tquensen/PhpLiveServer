@@ -14,8 +14,8 @@ class LongPollingChat {
     {
         echo 'CLIENT '.$client['key']." TRIES TO JOIN CHAT\n";
         if (empty($data['query']['username'])) {
-            $server->send($client, json_encode(array('status' => false, 'message' => 'No Username given!')));
-            return;
+            $server->send($client, json_encode(array('action' => 'join', 'status' => false, 'message' => 'No Username given!')));
+            return true;
         }
         $userId = md5($data['query']['username'].rand(10000,99999));
         $this->users[$userId] = array('username' => $data['query']['username'], 'joined' => time(), 'lastActivity' => time(), 'waiting' => array());
@@ -24,20 +24,28 @@ class LongPollingChat {
 
         $timestamp = microtime(true);
 
+        if (!empty($client['isWebSocket'])) {
+            $this->users[$userId]['waiting'][$client['key']] = $timestamp;
+        }
+        
         $this->addMessage($data['query']['username'].' joined!', 'join', $userId);
         $this->sendMessages($server);
-        $server->send($client, json_encode(array('status' => true, 'message' => 'You have joined the Chat', 'id' => $userId, 'timestamp' => $timestamp - 0.0001)));
+
+        
+
+        $server->send($client, json_encode(array('action' => 'join', 'status' => true, 'message' => 'You have joined the Chat', 'id' => $userId, 'timestamp' => $timestamp - 0.0001)));
+    
+        return true;
     }
 
     public function get($server, $client, $data)
     {
         echo 'CLIENT '.$client['key']." TRIES TO GET CHAT DATA\n";
-        echo $data['query']['id'];
         if (empty($data['query']['id']) || !isset($this->users[$data['query']['id']])) {
             echo 'CLIENT '.$client['key']." IS NO VALID CHAT USER!\n";
             echo $data['raw']."\n\n";
-            $server->send($client, json_encode(array('status' => false, 'message' => 'No valid id given!')));
-            return;
+            $server->send($client, json_encode(array('action' => 'get', 'status' => false, 'message' => 'No valid id given!')));
+            return true;
         }
         /*
         if (isset($this->connections[$client['key']]) && $this->connections[$client['key']] != $data['query']['id']) {
@@ -65,8 +73,8 @@ class LongPollingChat {
         echo 'CLIENT '.$client['key']." TRIES TO SEND CHAT DATA\n";
         if (empty($data['query']['id']) || !isset($this->users[$data['query']['id']])) {
             echo 'CLIENT '.$client['key']." IS NO VALID CHAT USER!\n";
-            $server->send($client, json_encode(array('status' => false, 'message' => 'No valid id given!')));
-            return;
+            $server->send($client, json_encode(array('action' => 'set', 'status' => false, 'message' => 'No valid id given!')));
+            return true;
         }
         /*
         if (isset($this->connections[$client['key']]) && $this->connections[$client['key']] != $data['query']['id']) {
@@ -80,14 +88,15 @@ class LongPollingChat {
         $this->users[$data['query']['id']]['lastActivity'] = time();
 
         if (empty($data['query']['message'])) {
-            $server->send($client, json_encode(array('status' => false, 'message' => 'No message given!')));
+            $server->send($client, json_encode(array('action' => 'set', 'status' => false, 'message' => 'No message given!')));
         }
         //$this->users[$data['query']['id']]['waiting'][$client['key']] = $data['query']['timestamp'];
-
+echo '<'.$data['query']['message'].'>';
         $this->addMessage($this->users[$data['query']['id']]['username'].': '.$data['query']['message'], 'message', $data['query']['id']);
         
         $this->sendMessages($server);
-        $server->send($client, json_encode(array('status' => true, 'message' => 'message posted!')));
+        $server->send($client, json_encode(array('action' => 'set', 'status' => true, 'message' => 'message posted!')));
+        return true;
     }
 
     public function disconnect($server, $client)
@@ -98,7 +107,7 @@ class LongPollingChat {
             unset($this->users[$userId]['waiting'][$client['key']]);
             $this->users[$userId]['lastActivity'] = time();
             $this->checkActivity($server);
-            //echo 'REMOVING CONNECTION '.$client['key'].' FROM CHAT USER '.$userId."\n";
+            echo 'REMOVING CONNECTION '.$client['key'].' FROM CHAT USER '.$userId."\n";
         }
     }
 
@@ -134,8 +143,9 @@ class LongPollingChat {
             foreach ($userData['waiting'] as $connection => $timestamp) {
                 list($newMessages, $newTimestamp) = $this->getMessages($timestamp, $userId);
                 if (count($newMessages)) {
+                    $this->users[$userId]['waiting'][$connection] = $newTimestamp;
                     echo 'SENDING MESSAGES TO '.$userId."\n";
-                    $server->send($connection, json_encode(array('status' => true, 'message' => count($newMessages).' new messages!', 'timestamp' => (float) $newTimestamp + 0.0001, 'messages' => $newMessages)));
+                    $server->send($connection, json_encode(array('action' => 'get', 'status' => true, 'message' => count($newMessages).' new messages!', 'timestamp' => (float) $newTimestamp + 0.0001, 'messages' => $newMessages)));
                     //return;
                 }
             }

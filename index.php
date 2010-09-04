@@ -34,6 +34,7 @@
                             if (chat.id === null || chat.timestamp === null) {
                                 $('#console').append('<p class="error">Cant fetch posts: no valid ID and/or timestamp!</p>');
                             }
+                            $('#console').append('<p class="info">SENDING Get / '+chat.id+' / '+chat.timestamp+'</p>');
                             $.ajax({
                                 'async': true,
                                 'url': settings.server + 'get',
@@ -43,19 +44,24 @@
                                 'type': 'POST',
                                 'data': {'id': chat.id, 'timestamp': chat.timestamp},
                                 'success': function(data) {
-                                    $('#console').append('<p class="info">'+data.status + ' / message: '+data.message+' / timestamp '+ data.timestamp + '</p>');
-                                    chat.timestamp = data.timestamp;
+                                   
+                                    if (data) {
+                                        if (data.messages) {
+                                            var time = null;
+                                            $.each(data.messages, function(i, v) {
+                                                time = new Date(parseInt(v.time * 1000));
+                                                $('#chat').append('<p class="'+v.type+'">'+time.getHours()+':'+time.getMinutes()+':'+time.getSeconds()+' - '+v.message+'</p>');
+                                            });
+                                        }
 
-                                    if (data.messages) {
-                                        var time = null;
-                                        $.each(data.messages, function(i, v) {
-                                            time = new Date(parseInt(v.time * 1000));
-                                            $('#chat').append('<p class="'+v.type+'">'+time.getHours()+':'+time.getMinutes()+':'+time.getSeconds()+' - '+v.message+'</p>');
-                                        });
-                                    }
-
-                                    if (data.status == true) {
-                                        window.setTimeout(chat.get, 1000);
+                                        if (data.status == true) {
+                                             $('#console').append('<p class="info">'+data.status + ' / message: '+data.message+' / timestamp '+ data.timestamp + '</p>');
+                                            chat.timestamp = data.timestamp;
+                                            window.setTimeout(chat.get, 1000);
+                                        }
+                                    } else {
+                                        $('#console').append('<p class="info">Get returned FALSE</p>');
+                                        window.setTimeout(chat.get, 5000);
                                     }
                                     
                                 },
@@ -75,12 +81,17 @@
                                 'type': 'POST',
                                 'data': {'username': 'User ' + Math.floor(Math.random() * (999 - 100 + 1)) + 100},
                                 'success': function(data) {
-                                    $('#console').append('<p class="info">'+data.status + ' / message: '+data.message+' / id '+data.id+' / timestamp '+data.timestamp+'</p>');
+                                    if (data) {
+                                        $('#console').append('<p class="info">'+data.status + ' / message: '+data.message+' / id '+data.id+' / timestamp '+data.timestamp+'</p>');
 
-                                    if (data.status == true) {
-                                        chat.id = data.id;
-                                        chat.timestamp = data.timestamp;
-                                        chat.get();
+                                        if (data.status == true) {
+                                            chat.id = data.id;
+                                            chat.timestamp = data.timestamp;
+                                            chat.get();
+                                        }
+                                    } else {
+                                        $('#console').append('<p class="info">JOIN returned FALSE</p>');
+                                        window.setTimeout(chat.join, 5000);
                                     }
                                 },
                                 'error': function() {
@@ -104,7 +115,11 @@
                                 'type': 'POST',
                                 'data': {'id': chat.id, 'message': message},
                                 'success': function(data) {
-                                    $('#console').append('<p class="info">'+data.status + ' / message: '+data.message+'</p>');
+                                    if (data) {
+                                        $('#console').append('<p class="info">'+data.status + ' / message: '+data.message+'</p>');
+                                    } else {
+                                        $('#console').append('<p class="info">SET returned FALSE</p>');
+                                    }
                                 },
                                 'error': function() {
                                     $('#console').append('<p class="info">Send timed out / no new messages!</p>');

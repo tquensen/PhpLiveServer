@@ -21,5 +21,6 @@ $server->addListener('POST /chat/get', array($chat, 'get'));
 $server->addListener('POST /chat/set', array($chat, 'set'));
 $server->addListener('disconnect', array($chat, 'disconnect'));
 $server->addListener('unhandledRequest', 'send404Response');
+$server->addListener('GET /chat/socket', array($server, 'handleWebSocket'));
 
 $server->listen() or die('OMFG!');
