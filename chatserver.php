@@ -9,12 +9,12 @@ function send404Response($server, $client, $data, $event)
     $server->send($client['key'], '', true, '404 NOT FOUND');
 }
 
-include_once dirname(__FILE__).'/LongPollingServer.php';
-include_once dirname(__FILE__).'/LongPollingChat.php';
+include_once dirname(__FILE__).'/PhpLiveServer.php';
+include_once dirname(__FILE__).'/PhpLiveChat.php';
 
 
-$server = new LongPollingServer(12345);
-$chat = new LongPollingChat();
+$server = new PhpLiveServer(12345);
+$chat = new PhpLiveChat();
 
 $server->addListener('POST /chat/join', array($chat, 'join'));
 $server->addListener('POST /chat/get', array($chat, 'get'));

@@ -1,5 +1,5 @@
 <?php
-class LongPollingChat {
+class PhpLiveChat {
     private $users = array();
     private $connections = array();
     private $messages = array();

@@ -1,6 +1,6 @@
 <?php
 
-class LongPollingServer {
+class PhpLiveServer {
     private $port;
     private $sockets = array();
     private $connections = array();
@@ -34,7 +34,7 @@ class LongPollingServer {
         }
     }
 
-    public function send($key, $message, $disconnect = true, $sendHeader = '200 OK', $headerData = array('Content-Type' => 'application/json; charset=UTF-8', 'Expires' => 'Sat, 26 Jul 1997 05:00:00 GMT'))
+    public function send($key, $message, $sendHeader = '200 OK', $headerData = array('Content-Type' => 'application/json; charset=UTF-8', 'Expires' => 'Sat, 26 Jul 1997 05:00:00 GMT'))
     {
         if (is_array($key) && isset($key['key'])) {
             $key = $key['key'];
@@ -79,9 +79,8 @@ class LongPollingServer {
                 }
                 //$message = $this->wrap($message);
                 socket_write($this->sockets[$key],$data,strlen($data));
-                if ($disconnect) {
-                    $this->disconnect($key);
-                }
+                $this->disconnect($key);
+                
             }
         }
     }
@@ -121,7 +120,7 @@ class LongPollingServer {
             $content = '';
         }
 
-        $this->send($client, $content, true, '101 WebSocket Protocol Handshake', $headers);
+        $this->send($client, $content, '101 WebSocket Protocol Handshake', $headers);
     
         return true;
     }
