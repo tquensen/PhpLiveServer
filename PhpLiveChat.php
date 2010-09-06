@@ -26,6 +26,7 @@ class PhpLiveChat {
 
         if (!empty($client['isWebSocket'])) {
             $this->users[$userId]['waiting'][$client['key']] = $timestamp;
+            $this->connections[$client['key']] = $userId;
         }
         
         $this->addMessage($data['query']['username'].' joined!', 'join', $userId);
@@ -106,7 +107,7 @@ echo '<'.$data['query']['message'].'>';
             unset($this->connections[$client['key']]);
             unset($this->users[$userId]['waiting'][$client['key']]);
             $this->users[$userId]['lastActivity'] = time();
-            $this->checkActivity($server);
+            //$this->checkActivity($server);
             echo 'REMOVING CONNECTION '.$client['key'].' FROM CHAT USER '.$userId."\n";
         }
     }
@@ -139,6 +140,8 @@ echo '<'.$data['query']['message'].'>';
 
     private function sendMessages($server)
     {
+        $this->checkActivity($server);
+        
         foreach ($this->users as $userId => $userData) {
             foreach ($userData['waiting'] as $connection => $timestamp) {
                 list($newMessages, $newTimestamp) = $this->getMessages($timestamp, $userId);
@@ -150,6 +153,7 @@ echo '<'.$data['query']['message'].'>';
                 }
             }
         }
+        
     }
 
     private function checkActivity($server)

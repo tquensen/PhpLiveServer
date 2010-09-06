@@ -16,6 +16,10 @@
                 background: #3399ff;
                 font: 14px/1.4em verdana, sans-serif;
 }
+
+p {
+    margin: 0 0 0.5em;
+}
             #chat, #console {
                 margin-bottom: 10px;
                 padding: 10px;
@@ -23,7 +27,7 @@
                 border-top: #fff 1px solid;
                 color: #666;
                 -webkit-box-shadow: 0 1px 6px rgba(0,0,0,0.5), 0 -2px 10px rgba(0,0,0,0.3) inset;
-                -box-shadow: 0 1px 6px rgba(0,0,0,0.5), 0 -2px 10px rgba(0,0,0,0.3) inset;
+                -moz-box-shadow: 0 1px 6px rgba(0,0,0,0.5), 0 -2px 10px rgba(0,0,0,0.3) inset;
                 box-shadow: 0 1px 6px rgba(0,0,0,0.5), 0 -2px 10px rgba(0,0,0,0.3) inset;
                 -webkit-border-radius: 10px;
                 -moz-border-radius: 10px;
@@ -41,21 +45,22 @@
     overflow: auto;
 }
 form {
-    margin: 0 10px 0 0px;
+    margin: 0 20px 0 0px;
     padding: 0;
 }
 form input {
+    outline: none;
     font-size: 1em;
     display: block;
     width: 100%;
-    padding: 5px;
+    padding: 10px;
     margin: 0;
     background: #fff;
     border: none;
     border-top: #fff 1px solid;
     color: #666;
     -webkit-box-shadow: 0 1px 6px rgba(0,0,0,0.5), 0 -2px 10px rgba(0,0,0,0.3) inset;
-    -box-shadow: 0 1px 6px rgba(0,0,0,0.5), 0 -2px 10px rgba(0,0,0,0.3) inset;
+    -moz-box-shadow: 0 1px 6px rgba(0,0,0,0.5), 0 -2px 10px rgba(0,0,0,0.3) inset;
     box-shadow: 0 1px 6px rgba(0,0,0,0.5), 0 -2px 10px rgba(0,0,0,0.3) inset;
     -webkit-border-radius: 10px;
     -moz-border-radius: 10px;
@@ -86,20 +91,20 @@ form input {
                             var time = null;
                             $.each(messages, function(i, v) {
                                 time = new Date(parseInt(v.time * 1000));
-                                $('#chat').append('<p class="'+v.type+'">'+time.getHours()+':'+time.getMinutes()+':'+time.getSeconds()+' - '+v.message+'</p>');
+                                $('#chat').prepend('<p class="'+v.type+'">'+time.getHours()+':'+time.getMinutes()+':'+time.getSeconds()+' - '+v.message+'</p>');
                             });
                         },
                         'connection': (function(){
                             if (typeof(WebSocket) === "undefined") {
-                                $('#console').append('<p class="info">USING LONGPOLLING CONNECTION :/</p>');
+                                $('#console').prepend('<p class="info">USING LONGPOLLING CONNECTION :/</p>');
                                 return {
                                     'get': function() {
                                         if (chat.id === null || chat.timestamp === null) {
-                                            $('#console').append('<p class="error">Cant fetch posts: no valid ID and/or timestamp!</p>');
+                                            $('#console').prepend('<p class="error">Cant fetch posts: no valid ID and/or timestamp!</p>');
                                             window.setTimeout(chat.connection.get, 1000);
                                             return;
                                         }
-                                        $('#console').append('<p class="info">SENDING Get / '+chat.id+' / '+chat.timestamp+'</p>');
+                                        $('#console').prepend('<p class="info">SENDING Get / '+chat.id+' / '+chat.timestamp+'</p>');
                                         $.ajax({
                                             'async': true,
                                             'url': 'http://' + chat.settings.server + 'get',
@@ -113,7 +118,7 @@ form input {
                                                 if (data) {
 
                                                     if (data.status == true) {
-                                                        $('#console').append('<p class="info">'+data.status + ' / message: '+data.message+' / timestamp '+ data.timestamp + '</p>');
+                                                        $('#console').prepend('<p class="info">'+data.status + ' / message: '+data.message+' / timestamp '+ data.timestamp + '</p>');
                                                         chat.timestamp = data.timestamp;
                                                         window.setTimeout(chat.connection.get, 1000);
                                                         if (data.messages) {
@@ -121,13 +126,13 @@ form input {
                                                         }
                                                     }
                                                 } else {
-                                                    $('#console').append('<p class="info">Get returned FALSE</p>');
+                                                    $('#console').prepend('<p class="info">Get returned FALSE</p>');
                                                     window.setTimeout(chat.connection.get, 5000);
                                                 }
                                     
                                             },
                                             'error': function() {
-                                                $('#console').append('<p class="info">Get timed out / no new messages!</p>');
+                                                $('#console').prepend('<p class="info">Get timed out / no new messages!</p>');
                                                 window.setTimeout(chat.connection.get, 5000);
                                             }
                                         });
@@ -143,7 +148,7 @@ form input {
                                             'data': {'username': 'User ' + Math.floor(Math.random() * (999 - 100 + 1)) + 100},
                                             'success': function(data) {
                                                 if (data) {
-                                                    $('#console').append('<p class="info">'+data.status + ' / message: '+data.message+' / id '+data.id+' / timestamp '+data.timestamp+'</p>');
+                                                    $('#console').prepend('<p class="info">'+data.status + ' / message: '+data.message+' / id '+data.id+' / timestamp '+data.timestamp+'</p>');
 
                                                     if (data.status == true) {
                                                         chat.id = data.id;
@@ -151,24 +156,24 @@ form input {
                                                         chat.connection.get();
                                                     }
                                                 } else {
-                                                    $('#console').append('<p class="info">JOIN returned FALSE</p>');
+                                                    $('#console').prepend('<p class="info">JOIN returned FALSE</p>');
                                                     window.setTimeout(chat.connection.join, 1000);
                                                 }
                                             },
                                             'error': function() {
-                                                $('#console').append('<p class="info">Join timed out!</p>');
+                                                $('#console').prepend('<p class="info">Join timed out!</p>');
                                                 window.setTimeout(chat.connection.join, 1000);
                                             }
                                         });
                                     },
                                     'set': function(message) {
                                         if (chat.id === null) {
-                                            $('#console').append('<p class="error">Cant send post: no valid ID!</p>');
+                                            $('#console').prepend('<p class="error">Cant send post: no valid ID!</p>');
                                             window.setTimeout(chat.connection.set, 250, message);
                                             return;
                                         }
                                         if (!message || !message.length) {
-                                            $('#console').append('<p class="error">Cant send post: no Message!</p>');
+                                            $('#console').prepend('<p class="error">Cant send post: no Message!</p>');
                                             return;
                                         }
                                         $.ajax({
@@ -181,14 +186,14 @@ form input {
                                             'data': {'id': chat.id, 'message': message},
                                             'success': function(data) {
                                                 if (data) {
-                                                    $('#console').append('<p class="info">'+data.status + ' / message: '+data.message+'</p>');
+                                                    $('#console').prepend('<p class="info">'+data.status + ' / message: '+data.message+'</p>');
                                                 } else {
-                                                    $('#console').append('<p class="info">SET returned FALSE</p>');
+                                                    $('#console').prepend('<p class="info">SET returned FALSE</p>');
                                                     window.setTimeout(chat.connection.set, 250, message);
                                                 }
                                             },
                                             'error': function() {
-                                                $('#console').append('<p class="info">Send timed out!</p>');
+                                                $('#console').prepend('<p class="info">Send timed out!</p>');
                                                 window.setTimeout(chat.connection.set, 1000, message);
                                             }
                                         });
@@ -202,34 +207,34 @@ form input {
                                     mySocket = new WebSocket('ws://' + chat.settings.server + 'socket');
                                     mySocket.onopen = function() {
                                         mySocketOpen = true;
-                                        $('#console').append('<p class="info">Socket OPEN!</p>');
+                                        $('#console').prepend('<p class="info">Socket OPEN!</p>');
                                     }
 
                                     mySocket.onerror = function() {
-                                        $('#console').append('<p class="info">Socket ERROR!</p>');
+                                        $('#console').prepend('<p class="info">Socket ERROR!</p>');
                                     }
 
                                     mySocket.onclose = function() {
                                         mySocketOpen = false;
-                                        $('#console').append('<p class="info">Socket closed!</p>');
+                                        $('#console').prepend('<p class="info">Socket closed!</p>');
                                     }
 
                                     mySocket.onmessage = function(m) {
                                         data = JSON.parse(m.data);
                                         if (!data || !data.action) {
-                                            $('#console').append('<p class="info">Error: got invalid response via WebSocket!</p>');
+                                            $('#console').prepend('<p class="info">Error: got invalid response via WebSocket!</p>');
                                         }
                                         if (data.status == false) {
-                                            $('#console').append('<p class="info">Error in '+data.action + ': '+data.message+'</p>');
+                                            $('#console').prepend('<p class="info">Error in '+data.action + ': '+data.message+'</p>');
                                         } else {
                                             if (data.action == 'join') {
-                                                $('#console').append('<p class="info">'+data.status + ' / message: '+data.message+' / id '+data.id+' / timestamp '+data.timestamp+'</p>');
+                                                $('#console').prepend('<p class="info">'+data.status + ' / message: '+data.message+' / id '+data.id+' / timestamp '+data.timestamp+'</p>');
                                                 chat.id = data.id;
                                                 chat.timestamp = data.timestamp;
                                             } else if(data.action == 'set') {
-                                                $('#console').append('<p class="info">'+data.status + ' / message: '+data.message+'</p>');
+                                                $('#console').prepend('<p class="info">'+data.status + ' / message: '+data.message+'</p>');
                                             } else if (data.action == 'get') {
-                                                $('#console').append('<p class="info">'+data.status + ' / message: '+data.message+' / timestamp '+ data.timestamp + '</p>');
+                                                $('#console').prepend('<p class="info">'+data.status + ' / message: '+data.message+' / timestamp '+ data.timestamp + '</p>');
                                                 chat.timestamp = data.timestamp;
                                                 if (data.messages) {
                                                     chat.getSuccess(data.messages);
@@ -239,7 +244,7 @@ form input {
 
                                     }
                                 }
-                                $('#console').append('<p class="info">USING WEBSOCKET CONNECTION :)</p>');
+                                $('#console').prepend('<p class="info">USING WEBSOCKET CONNECTION :)</p>');
                                 return {
                                     'get': function() {
 
@@ -256,12 +261,12 @@ form input {
                                     },
                                     'set': function(message) {
                                         if (chat.id === null) {
-                                            $('#console').append('<p class="error">Cant send post: no valid ID!</p>');
+                                            $('#console').prepend('<p class="error">Cant send post: no valid ID!</p>');
                                             window.setTimeout(chat.connection.set, 250, message);
                                             return;
                                         }
                                         if (!message || !message.length) {
-                                            $('#console').append('<p class="error">Cant send post: no Message!</p>');
+                                            $('#console').prepend('<p class="error">Cant send post: no Message!</p>');
                                             return;
                                         }
                                         mySocket.send('POST /chat/set'+"\r\n\r\n"+'id=' + chat.id + '&message='+encodeURIComponent(message));

@@ -30,7 +30,7 @@ class PhpLiveServer {
             socket_close($this->sockets[$key]);
             unset($this->sockets[$key]);
             unset($this->connections[$key]);
-            //echo "CLOSE CONNECTION: ".$key."\n";
+            echo "CLOSE CONNECTION: ".$key."\n";
         }
     }
 
@@ -120,7 +120,7 @@ class PhpLiveServer {
             $content = '';
         }
 
-        $this->send($client, $content, '101 WebSocket Protocol Handshake', $headers);
+        $this->send($client, $content, '101 Web Socket Protocol Handshake', $headers);
     
         return true;
     }
