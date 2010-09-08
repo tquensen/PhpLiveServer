@@ -13,7 +13,7 @@ class PhpLiveChat {
     public function join($server, $client, $data)
     {
         echo 'CLIENT '.$client['key']." TRIES TO JOIN CHAT\n";
-        sleep(2);
+
         if (empty($data['query']['username'])) {
             $server->send($client, json_encode(array('action' => 'join', 'status' => false, 'message' => 'No Username given!')));
             return true;
@@ -122,8 +122,9 @@ echo '<'.$data['query']['message'].'>';
                 unset($this->users[$userId]);
             }
         }
+        $this->sendMessages($server);
         return true;
-        //$this->sendMessages($server);
+        
     }
 
     private function addMessage($message, $type, $from, $to = false)
@@ -154,7 +155,7 @@ echo '<'.$data['query']['message'].'>';
 
     private function sendMessages($server)
     {
-        $this->checkActivity($server);
+        //$this->checkActivity($server);
         
         foreach ($this->users as $userId => $userData) {
             foreach ($userData['waiting'] as $connection => $timestamp) {

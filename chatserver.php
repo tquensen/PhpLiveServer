@@ -17,11 +17,13 @@ $server->addListener('POST /chat/join', array($chat, 'join'));
 $server->addListener('POST /chat/get', array($chat, 'get'));
 $server->addListener('POST /chat/set', array($chat, 'set'));
 $server->addListener('TIMER /chat/timer', array($chat, 'checkActivity'));
+$server->addListener('TIMER /chat/timer2', array($chat, 'checkActivity'));
 $server->addListener('disconnect', array($chat, 'disconnect'));
 $server->addListener('unhandledRequest', array($server, 'handleUnhandledRequest'));
 $server->addListener('GET /chat/socket', array($server, 'handleWebSocket'));
 
 $server->startTimer('/chat/timer', 1000);
+$server->startTimer('/chat/timer2', 1000);
 
 
 $server->listen() or die('OMFG!');

@@ -16,12 +16,20 @@ class PhpLiveServer {
         $this->address = $address;
 
         $this->master = socket_create(AF_INET, SOCK_STREAM, SOL_TCP);
-        socket_bind($this->master, $this->address, $this->port) or die('Could not bind socket to address');
-        socket_listen($this->master, $maxconn) or die('Could not listen to socket');
+        if (!@socket_bind($this->master, $this->address, $this->port)) {
+            $this->log('Could not bind socket to address: ('.socket_last_error().') '.  socket_strerror(socket_last_error()));
+            exit;
+        }
+        if (!@socket_listen($this->master, $maxconn)) {
+            $this->log('Could not listen to socket: ('.socket_last_error().') '.  socket_strerror(socket_last_error()));
+            exit;
+        }
+
+        $this->log('started...');
 
         $this->addListener('OPTIONS request', array($this, 'handleOptionsRequest'));
-        $this->addListener('RAWTIMER request', array($this, 'handleTimerRequest'));
-        echo date('Y.m.d H:i') . ': Server on '.$this->address.':'.$this->port.' > started...'."\n";
+        $this->addListener('TIMER request', array($this, 'handleTimerRequest'));
+
     }
 
     public function disconnect($key)
@@ -105,7 +113,7 @@ class PhpLiveServer {
             if (isset($this->timers[$data['query']['key']]) && $this->timers[$data['query']['key']] === false) {
                 $this->send($client, 'stopped by stopTimer()');
             } else {
-                date('Y.m.d H:i') . ': Server on '.$this->address.':'.$this->port.' > got timer request for '.$data['action'].' with invalid key '.$client['key']."\n";
+                $this->log('got timer request for '.$data['action'].' with invalid key '.(isset($data['query']['key']) ? $data['query']['key'] : '(no key').' from ' . $client['key']);
                 $this->send($client, 'invalid key');
             }
 
@@ -119,7 +127,8 @@ class PhpLiveServer {
 
     public function handleUnhandledRequest($server, $client, $data, $event)
     {
-        echo date('Y.m.d H:i') . ': Server on '.$this->address.':'.$this->port.' > unhandled request for '.$event.' by '.$client['key'].' / sending 404'."\n";
+        $this->log('unhandled request for '.$event.' by '.$client['key'].' / sending 404');
+        
         $server->send($client['key'], '', '404 NOT FOUND');
     }
 
@@ -171,8 +180,8 @@ class PhpLiveServer {
         } else {
             $name = (string) $callable;
         }
+        $this->log('adding listener '.$name.' for action '.$event);
         
-        echo date('Y.m.d H:i') . ': Server on '.$this->address.':'.$this->port.' > adding listener '.$name.' for action '.$event."\n";
         $this->listeners[$event][] = $callable;
     }
 
@@ -181,9 +190,15 @@ class PhpLiveServer {
         $key = md5(time().$action.rand(10000,99999));
         $file = dirname(__FILE__).'/timer.php';
         $args = $this->address . ' ' . $this->port . ' ' . $key . ' ' . $interval . ' ' . $action;
-        echo date('Y.m.d H:i') . ': Server on '.$this->address.':'.$this->port.' > starting timer '.$key.' for action '.$action."\n";
+        $this->log('starting timer '.$key.' for action '.$action);
         $this->timers[$key] = $action;
-        system($file . ' ' . $args . ' > '.dirname(__FILE__).'/timer.log &');
+        //the default shell command
+        exec($file . ' ' . $args . ' >/dev/null &');
+
+        //dirty windows/cygwin fix
+        //exec('f:\cygwin\bin\bash.exe -c " '.str_replace('\\', '/', $file) . ' ' . $args . ' >/dev/null &"');
+        
+        
         return $key;
     }
 
@@ -192,8 +207,8 @@ class PhpLiveServer {
         if (!isset($this->timers[$key])) {
             return false;
         }
+        $this->log('stopping timer '.$key.' for action '.$this->timers[$key]);
         $this->timers[$key] = false;
-        echo date('Y.m.d H:i') . ': Server on '.$this->address.':'.$this->port.' > stopping timer '.$key.' for action '.$this->timers[$key]."\n";
 
         return true;
     }
@@ -237,12 +252,17 @@ class PhpLiveServer {
                     $name = (string) $callable;
                 }
 
-                echo date('Y.m.d H:i') . ': Server on '.$this->address.':'.$this->port.' > removing listener '.$name.' for action '.$event."\n";
+                $this->log('removing listener '.$name.' for action '.$event);
 
                 return true;
             }
         }
         return false;
+    }
+
+    public function log($message)
+    {
+        file_put_contents(dirname(__FILE__).'/server.log', date('Y.m.d H:i') . ': Server on '.$this->address.':'.$this->port.' > '.$message."\n", FILE_APPEND);
     }
 
     private function call($event, $key, $data = null)
@@ -280,7 +300,8 @@ class PhpLiveServer {
         if (!$this->master) {
             return false;
         }
-        echo date('Y.m.d H:i') . ': Server on '.$this->address.':'.$this->port.' > listening...'."\n";
+        $this->log('listening...');
+
         do {
             $sockets = $this->sockets;
             $sockets[] = $this->master;
@@ -290,7 +311,7 @@ class PhpLiveServer {
             }
             foreach ($sockets as $socket) {
                 if ($socket == $this->master) {
-                    $client=socket_accept($socket) or trigger_error('Could not accept socket '.$socket);
+                    $client=socket_accept($socket) or $this->log('Could not accept socket '.$socket);
                     if ($client) {
                         $this->connect($client);
                     }
@@ -311,7 +332,7 @@ class PhpLiveServer {
                 }
             }
         } while($this->master);
-        echo date('Y.m.d H:i') . ': Server on '.$this->address.':'.$this->port.' > shutdown'."\n";
+        $this->log('shutdown');
     }
 
     private function connect($socket)
@@ -335,7 +356,7 @@ class PhpLiveServer {
             $this->connections[$key]['requestAction'] = $data['action'];
             $this->connections[$key]['requestHeaders'] = $data['headers'];
             //echo "PROCESSING ".$data['action']." FOR ".$key."\n";
-            if (!$this->call(strtoupper($data['method']).' '.$data['action'], $key, $data) && !$this->call(strtoupper($data['method']).' request', $key, $data)) {
+            if (!$this->call(strtoupper($data['method']).' request', $key, $data) && !$this->call(strtoupper($data['method']).' '.$data['action'], $key, $data)) {
                 $this->call('unhandledRequest', $key, $data);
             }
 

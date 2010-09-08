@@ -2,6 +2,12 @@
 <?php
 error_reporting(E_ALL);
 
+function logger($message)
+{
+    global $key, $action;
+    file_put_contents(dirname(__FILE__).'/timer.log', date('Y.m.d H:i:s') . ': Timer '.$key.' for '.$action.' > '.$message."\n", FILE_APPEND);
+}
+
 $script = array_shift($argv);
 $address = array_shift($argv);
 $port = array_shift($argv);
@@ -21,7 +27,7 @@ $socket = socket_create(AF_INET, SOCK_STREAM, SOL_TCP);
 socket_connect($socket, $address, $port);
 
 $i = 0;
-echo date('Y.m.d H:i') . ': Timer '.$key.' for '.$action.' > started...'."\n";
+logger('started...');
 $read = '';
 do {
     $wait = $nextCall - microtime(true);
@@ -30,7 +36,7 @@ do {
 
     $sockets = array($socket);
 
-    $message = 'RAWTIMER '.$action."\r\n\r\n".'key='.$key;
+    $message = 'TIMER '.$action."\r\n\r\n".'key='.$key;
     $len=strlen($message);
     $offset = 0;
     while ($offset < $len) {
@@ -43,21 +49,20 @@ do {
         $offset += $sent;
     }
     if ($offset < $len) {
-        $errorcode = socket_last_error();
-        $errormsg = socket_strerror($errorcode);
-        $read = 'sending error:' . $errormsg;
+        $read = 'sending error: (' . socket_last_error() . ') '. socket_strerror(socket_last_error());
     } else {
         $read  = '';
         if (!socket_select($sockets, $w=null, $e=null, null)) {
-            echo socket_strerror(socket_last_error())."\n";
+            $read = 'reading error: (' . socket_last_error() . ') '. socket_strerror(socket_last_error());
+        } else {
+            socket_set_nonblock($socket);
+            while (($buffer = @socket_read($sockets[0],96, PHP_BINARY_READ))) {
+                $read .= $buffer;
+            }
+            socket_set_block($socket);
         }
-        socket_set_nonblock($socket);
-        while (($buffer = @socket_read($sockets[0],96, PHP_BINARY_READ))) {
-            $read .= $buffer;
-        }
-        socket_set_block($socket);
     }
     $nextCall += $interval;
     //var_dump($nextCall);
 } while($read == 'ok' && ++$i);
-echo date('Y.m.d H:i') . ':Timer '.$key.' for '.$action.' > shutdown after '.$i.' runs / message: ' .$read . "\n";
+logger('shutdown after '.$i.' runs / message: ' .$read);
