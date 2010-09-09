@@ -1,6 +1,7 @@
 #!/usr/bin/php
 <?php
 error_reporting(E_ALL);
+date_default_timezone_set('Europe/Berlin');
 
 function logger($message)
 {
