@@ -4,6 +4,7 @@
 error_reporting(E_ALL);
 set_time_limit(0);
 ob_implicit_flush();
+date_default_timezone_set('Europe/Berlin');
 
 
 include_once dirname(__FILE__).'/PhpLiveServer.php';
