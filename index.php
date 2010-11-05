@@ -74,7 +74,7 @@ form input {
         </div>
         <div id="console">
         </div>
-        <form action="#" method="POST">
+        <form action="#" method="POST" onsubmit="return false">
             <input name="msg" id="msg" placeholder="Type to chat :)"/>
         </form>
         <script>
@@ -84,7 +84,7 @@ form input {
                 $(function() {
                     var chat = {
                         'settings': {
-                            'server': '127.0.0.1:12345/chat/'
+                            'server': 't3nchat.local/chat/'
                         },
                         'id': null,
                         'getSuccess': function(messages) {
@@ -137,7 +137,40 @@ form input {
                                             }
                                         });
                                     },
+                                    'userlist': function() {
+                                        if (chat.id === null) {
+                                            $('#console').prepend('<p class="error">Cant fetch userlist: no valid ID!</p>');
+                                            return;
+                                        }
+                                        $('#console').prepend('<p class="info">Requesting userlist!</p>');
+                                        $.ajax({
+                                            'async': true,
+                                            'url': 'http://' + chat.settings.server + 'userlist',
+                                            'cache': false,
+                                            'dataType': 'json',
+                                            'timeout': 10000,
+                                            'type': 'POST',
+                                            'data': {'id': chat.id},
+                                            'success': function(data) {
+
+                                                if (data) {
+
+                                                    if (data.status == true) {
+
+                                                        $('#console').prepend('<p class="info">'+data.message+': '+data.userlist.join(', ')+'</p>');
+                                                    }
+                                                } else {
+                                                    $('#console').prepend('<p class="info">Userlist returned FALSE</p>');
+                                                }
+
+                                            },
+                                            'error': function() {
+                                                $('#console').prepend('<p class="info">Userlist timed out</p>');
+                                            }
+                                        });
+                                    },
                                     'join': function() {
+                                        var username = window.prompt('Username?', 'User ' + Math.floor(Math.random() * (99999)));
                                         $.ajax({
                                             'async': true,
                                             'url': 'http://' + chat.settings.server + 'join',
@@ -145,7 +178,7 @@ form input {
                                             'dataType': 'json',
                                             'timeout': 30000,
                                             'type': 'POST',
-                                            'data': {'username': 'User ' + Math.floor(Math.random() * (999 - 100 + 1)) + 100},
+                                            'data': {'username': username },
                                             'success': function(data) {
                                                 if (data) {
                                                     $('#console').prepend('<p class="info">'+data.status + ' / message: '+data.message+' / id '+data.id+' / timestamp '+data.timestamp+'</p>');
@@ -153,6 +186,7 @@ form input {
                                                     if (data.status == true) {
                                                         chat.id = data.id;
                                                         chat.timestamp = data.timestamp;
+                                                        chat.connection.userlist();
                                                         chat.connection.get();
                                                     }
                                                 } else {
@@ -176,6 +210,7 @@ form input {
                                             $('#console').prepend('<p class="error">Cant send post: no Message!</p>');
                                             return;
                                         }
+                                        $('#console').prepend('<p class="info">SENDING SET / '+chat.id+' / '+message+'</p>');
                                         $.ajax({
                                             'async': true,
                                             'url': 'http://' + chat.settings.server + 'set',
@@ -231,6 +266,7 @@ form input {
                                                 $('#console').prepend('<p class="info">'+data.status + ' / message: '+data.message+' / id '+data.id+' / timestamp '+data.timestamp+'</p>');
                                                 chat.id = data.id;
                                                 chat.timestamp = data.timestamp;
+                                                chat.connection.userlist();
                                             } else if(data.action == 'set') {
                                                 $('#console').prepend('<p class="info">'+data.status + ' / message: '+data.message+'</p>');
                                             } else if (data.action == 'get') {
@@ -239,6 +275,8 @@ form input {
                                                 if (data.messages) {
                                                     chat.getSuccess(data.messages);
                                                 }
+                                            } else if (data.action == 'userlist') {
+                                                $('#console').prepend('<p class="info">'+data.message+': '+data.userlist.join(', ')+'</p>');
                                             }
                                         }
 
@@ -254,7 +292,8 @@ form input {
                                             init();
                                         }
                                         if (mySocketOpen == true) {
-                                            mySocket.send('POST /chat/join'+"\n\n"+'username=User%20' + Math.floor(Math.random() * (999 - 100 + 1)) + 100);
+                                            var username = window.prompt('Username?', 'User ' + Math.floor(Math.random() * (99999)));
+                                            mySocket.send('POST /chat/join'+"\n\n"+'username='+encodeURIComponent(username));
                                         } else {
                                             window.setTimeout(chat.connection.join, 250);
                                         }
@@ -270,6 +309,13 @@ form input {
                                             return;
                                         }
                                         mySocket.send('POST /chat/set'+"\r\n\r\n"+'id=' + chat.id + '&message='+encodeURIComponent(message));
+                                    },
+                                    'userlist': function() {
+                                        if (chat.id === null) {
+                                            $('#console').prepend('<p class="error">Cant fetch userlist: no valid ID!</p>');
+                                            return;
+                                        }
+                                        mySocket.send('POST /chat/userlist'+"\r\n\r\n"+'id=' + chat.id);
                                     }
                                 };
                             }

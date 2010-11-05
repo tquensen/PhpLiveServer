@@ -8,7 +8,7 @@ class PhpLiveServer {
     private $timers = array();
     private $master;
     private $address;
-    private $allowedOrigins = array('http://127.0.0.1', 'http://localhost');
+    private $allowedOrigins = array();
 
     public function __construct($port=12345, $address='127.0.0.1', $maxconn = SOMAXCONN)
     {
@@ -30,6 +30,10 @@ class PhpLiveServer {
         $this->addListener('OPTIONS request', array($this, 'handleOptionsRequest'));
         $this->addListener('TIMER request', array($this, 'handleTimerRequest'));
 
+    }
+
+    public function setAllowedOrigins($origins) {
+        $this->allowedOrigins = (array) $origins;
     }
 
     public function disconnect($key)
@@ -85,6 +89,8 @@ class PhpLiveServer {
                             $headerData['Access-Control-Allow-Methods'] = 'PROPFIND, PROPPATCH, COPY, MOVE, DELETE, MKCOL, LOCK, UNLOCK, PUT, GETLIB, VERSION-CONTROL, CHECKIN, CHECKOUT, UNCHECKOUT, REPORT, UPDATE, CANCELUPLOAD, HEAD, OPTIONS, GET, POST';
                         }
                     }
+                    $headerData['Connection'] = 'close';
+                    $headerData['Content-Length'] = strlen($message);
                     $header = $this->getHeader($headerData, $sendHeader);
                     $data = $header."\r\n".$message;
                     //echo "SENDING ($sendHeader) $data TO $key\n";
@@ -93,7 +99,7 @@ class PhpLiveServer {
                     //echo "SENDING $message TO $key\n";
                 }
                 //$message = $this->wrap($message);
-                socket_write($this->sockets[$key],$data,strlen($data));
+                socket_write($this->sockets[$key],$data.chr(0),strlen($data));
                 $this->disconnect($key);
                 
             }
@@ -127,7 +133,7 @@ class PhpLiveServer {
 
     public function handleUnhandledRequest($server, $client, $data, $event)
     {
-        $this->log('unhandled request for '.$event.' by '.$client['key'].' / sending 404');
+        $this->log('unhandled request for '.$data['method'].' '.$data['action'].' by '.$client['key'].' / sending 404');
         
         $server->send($client['key'], '', '404 NOT FOUND');
     }
@@ -317,16 +323,29 @@ class PhpLiveServer {
                     }
                 } else {
                     $key = array_search($socket, $this->sockets);
+                    //$buffer = null;
+                    $read = '';
                     $buffer = null;
-                    $read  = '';
-                    socket_set_nonblock($socket);
-                    while (($buffer = @socket_read($socket,96, PHP_BINARY_READ))) {
-                        $read .= $buffer;
-                    }
-                    socket_set_block($socket);
-                    if (!$read) {
+                    $bytes = @socket_recv($socket, $read, 4096, 0);
+                    //socket_set_nonblock($socket);
+                    //echo "\n\n".'---------------------'."\n";
+                    //do {
+
+                    //while ($bytes = @socket_recv($socket, $buffer, 4096, 0)) {//$buffer = @socket_read($socket,1024, PHP_BINARY_READ)) {
+                     //   $read .= $buffer;
+                    //}
+                    //   $read .= $buffer;
+                    //   echo $buffer;
+                    //} while ($buffer !== '' && $buffer !== false);
+                    //echo "\n".'---------------------'."\n\n";
+                    //echo $buffer;
+                    var_dump($bytes);
+                    //socket_set_block($socket);
+                    if (!$bytes) {
+                        //echo socket_strerror(socket_last_error($socket));
                         $this->disconnect($key);
                     } else {
+                        //var_dump($read);
                         $this->process($key, $read);
                     }
                 }
@@ -339,17 +358,45 @@ class PhpLiveServer {
     {
         $randomKey = md5(microtime(true).rand(10000,99999).$socket);
         $this->sockets[$randomKey] = $socket;
-        $this->connections[$randomKey] = array('key' => $randomKey, 'socket' => $socket);
+        $this->connections[$randomKey] = array('key' => $randomKey, 'socket' => $socket, 'data' => '');
         $this->call('connect', $randomKey);
         //echo "NEW CONNECTION: ".$randomKey."\n";
     }
 
     private function process($key, $data)
     {
+        $this->connections[$key]['data'] .= $data;
+
+
+
         if (!empty($this->connections[$key]['isWebSocket'])) {
-            $data = $this->parseRequest(substr($data,1,strlen($data)-2));
+            var_dump(ord(substr($this->connections[$key]['data'], -1)));
+            if (ord(substr($this->connections[$key]['data'], -1)) !== 255) {
+                return;
+            } else {
+                $data = $this->connections[$key]['data'];
+                $this->connections[$key]['data'] = '';
+            }
+            $data = $this->parseRequest(substr($data,1,-1));
         } else {
-            $data = $this->parseRequest($data);
+            $ok = false;
+            if (substr($this->connections[$key]['data'], 0, 5) !== 'POST ' && strpos($this->connections[$key]['data'], "\r\n\r\n")) {
+                $data = $this->connections[$key]['data'];
+                $this->connections[$key]['data'] = '';
+                $data = $this->parseRequest($data);
+                $ok = true;
+            } elseif(substr($this->connections[$key]['data'], 0, 5) === 'POST ') {
+                $data = $this->parseRequest($this->connections[$key]['data']);
+                if (!empty($data['headers']['Content-Length']) && strlen($data['content']) >= $data['headers']['Content-Length']) {
+                    $this->connections[$key]['data'] = '';
+                    $ok = true;
+                } else {
+                    echo 'waiting for more post content..., GOT '.strlen($data['content']).' NEED '.$data['headers']['Content-Length']."\n";
+                }
+            }
+            if (!$ok) {
+                return;
+            }
         }
         //echo '============================='."\n".$key."\n".'============================='."\n".$data['raw']."\n=============================\n\n";
         if ($data['action']) {

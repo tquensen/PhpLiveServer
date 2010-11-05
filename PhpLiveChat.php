@@ -9,12 +9,20 @@ class PhpLiveChat {
     {
         $this->maxMessages = $maxMessages;
     }
+
+    public function showIndex($server, $client, $data)
+    {
+        $data = file_get_contents(dirname(__FILE__).'/index.php');
+        $server->send($client, $data, '200 OK', array('Content-Type' => 'text/html; charset=UTF-8', 'Content-Length' =>  strlen($data)));
+        return true;
+    }
     
     public function join($server, $client, $data)
     {
         echo 'CLIENT '.$client['key']." TRIES TO JOIN CHAT\n";
 
         if (empty($data['query']['username'])) {
+            //echo $data['raw'];
             $server->send($client, json_encode(array('action' => 'join', 'status' => false, 'message' => 'No Username given!')));
             return true;
         }
@@ -31,9 +39,7 @@ class PhpLiveChat {
         }
         
         $this->addMessage($data['query']['username'].' joined!', 'join', $userId);
-        $this->sendMessages($server);
-
-        
+        $this->sendMessages($server);     
 
         $server->send($client, json_encode(array('action' => 'join', 'status' => true, 'message' => 'You have joined the Chat', 'id' => $userId, 'timestamp' => $timestamp - 0.0001)));
     
@@ -45,8 +51,7 @@ class PhpLiveChat {
         echo 'CLIENT '.$client['key']." TRIES TO GET CHAT DATA\n";
         if (empty($data['query']['id']) || !isset($this->users[$data['query']['id']])) {
             echo 'CLIENT '.$client['key']." IS NO VALID CHAT USER!\n";
-            echo $data['raw']."\n\n";
-            $server->send($client, json_encode(array('action' => 'get', 'status' => false, 'message' => 'No valid id given!')));
+            $server->send($client, json_encode(array('action' => 'get', 'status' => false, 'message' => 'No valid id given ('.(empty($data['query']['id']) ? 'no id' : $data['query']['id']).')!')));
             return true;
         }
         /*
@@ -75,7 +80,7 @@ class PhpLiveChat {
         echo 'CLIENT '.$client['key']." TRIES TO SEND CHAT DATA\n";
         if (empty($data['query']['id']) || !isset($this->users[$data['query']['id']])) {
             echo 'CLIENT '.$client['key']." IS NO VALID CHAT USER!\n";
-            $server->send($client, json_encode(array('action' => 'set', 'status' => false, 'message' => 'No valid id given!')));
+            $server->send($client, json_encode(array('action' => 'set', 'status' => false, 'message' => 'No valid id given ('.(empty($data['query']['id']) ? 'no id' : $data['query']['id']).')!')));
             return true;
         }
         /*
@@ -98,6 +103,22 @@ echo '<'.$data['query']['message'].'>';
         
         $this->sendMessages($server);
         $server->send($client, json_encode(array('action' => 'set', 'status' => true, 'message' => 'message posted!')));
+        return true;
+    }
+
+    public function getUserList($server, $client, $data)
+    {
+        echo 'CLIENT '.$client['key']." TRIES TO GET USER LIST\n";
+        if (empty($data['query']['id']) || !isset($this->users[$data['query']['id']])) {
+            echo 'CLIENT '.$client['key']." IS NO VALID CHAT USER!\n";
+            $server->send($client, json_encode(array('action' => 'userlist', 'status' => false, 'message' => 'No valid id given ('.(empty($data['query']['id']) ? 'no id' : $data['query']['id']).')!')));
+            return true;
+        }
+        $users = array();
+        foreach ($this->users as $user) {
+            $users[] = $user['username'];
+        }
+        $server->send($client, json_encode(array('action' => 'userlist', 'status' => true, 'message' => count($users).' User online!', 'userlist' => $users)));
         return true;
     }
 
@@ -129,9 +150,9 @@ echo '<'.$data['query']['message'].'>';
 
     private function addMessage($message, $type, $from, $to = false)
     {
-        array_push($this->messages, array('time' => microtime(true), 'message' => $message, 'type' => $type, 'from' => $from, 'to' => $to));
+        array_unshift($this->messages, array('time' => microtime(true), 'message' => $message, 'type' => $type, 'from' => $from, 'to' => $to));
         while (count($this->messages) > $this->maxMessages) {
-            array_shift($this->messages);
+            array_pop($this->messages);
         }
         //$this->sendMessages();
     }
@@ -140,9 +161,12 @@ echo '<'.$data['query']['message'].'>';
     {
         $messages = array();
         foreach ($this->messages as $message) {
-            if ($message['time'] > (float) $fromTime && ($message['to'] == $to || $message['to'] == false)) {
-                $messages[] = array('time' => $message['time'], 'type' => $message['type'], 'message' => $message['message']);
-                //array_push($messages, $message);
+            if ($message['time'] < (float) $fromTime) {
+                break;
+            }
+            if ($message['to'] == $to || $message['to'] == false) {
+                $messageData = array('time' => $message['time'], 'type' => $message['type'], 'message' => $message['message']);
+                array_unshift($messages, $messageData);
             }
         }
         if ($last = end($messages)) {
@@ -161,7 +185,7 @@ echo '<'.$data['query']['message'].'>';
             foreach ($userData['waiting'] as $connection => $timestamp) {
                 list($newMessages, $newTimestamp) = $this->getMessages($timestamp, $userId);
                 if (count($newMessages)) {
-                    $this->users[$userId]['waiting'][$connection] = $newTimestamp;
+                    $this->users[$userId]['waiting'][$connection] = $newTimestamp + 0.0001;
                     echo 'SENDING MESSAGES TO '.$userId."\n";
                     $server->send($connection, json_encode(array('action' => 'get', 'status' => true, 'message' => count($newMessages).' new messages!', 'timestamp' => (float) $newTimestamp + 0.0001, 'messages' => $newMessages)));
                     //return;

@@ -11,20 +11,26 @@ include_once dirname(__FILE__).'/PhpLiveServer.php';
 include_once dirname(__FILE__).'/PhpLiveChat.php';
 
 
-$server = new PhpLiveServer(12345);
+$server = new PhpLiveServer(80, '192.168.0.116');
+$server->setAllowedOrigins('http://t3nchat.local');
+
 $chat = new PhpLiveChat();
 
 $server->addListener('POST /chat/join', array($chat, 'join'));
 $server->addListener('POST /chat/get', array($chat, 'get'));
 $server->addListener('POST /chat/set', array($chat, 'set'));
+$server->addListener('POST /chat/userlist', array($chat, 'getUserList'));
 $server->addListener('TIMER /chat/timer', array($chat, 'checkActivity'));
-$server->addListener('TIMER /chat/timer2', array($chat, 'checkActivity'));
+//$server->addListener('TIMER /chat/timer2', array($chat, 'checkActivity'));
 $server->addListener('disconnect', array($chat, 'disconnect'));
 $server->addListener('unhandledRequest', array($server, 'handleUnhandledRequest'));
 $server->addListener('GET /chat/socket', array($server, 'handleWebSocket'));
 
+$server->addListener('GET /', array($chat, 'showIndex'));
+
+
 $server->startTimer('/chat/timer', 1000);
-$server->startTimer('/chat/timer2', 1000);
+//$server->startTimer('/chat/timer2', 1000);
 
 
 $server->listen() or die('OMFG!');
