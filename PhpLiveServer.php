@@ -339,7 +339,7 @@ class PhpLiveServer {
                     //} while ($buffer !== '' && $buffer !== false);
                     //echo "\n".'---------------------'."\n\n";
                     //echo $buffer;
-                    var_dump($bytes);
+                    //var_dump($bytes);
                     //socket_set_block($socket);
                     if (!$bytes) {
                         //echo socket_strerror(socket_last_error($socket));
@@ -371,24 +371,28 @@ class PhpLiveServer {
 
         if (!empty($this->connections[$key]['isWebSocket'])) {
             var_dump(ord(substr($this->connections[$key]['data'], -1)));
-            if (ord(substr($this->connections[$key]['data'], -1)) !== 255) {
+            if (strpos($this->connections[$key]['data'], chr(255) === false)) {
                 return;
             } else {
-                $data = $this->connections[$key]['data'];
-                $this->connections[$key]['data'] = '';
+                $datas = explode(chr(255), $this->connections[$key]['data']);
+                $this->connections[$key]['data'] = array_pop($datas);
             }
-            $data = $this->parseRequest(substr($data,1,-1));
+            $data = array();
+            foreach ($datas as $currentData) {
+                $data[] = $this->parseRequest(substr($currentData,1));
+            }
         } else {
             $ok = false;
             if (substr($this->connections[$key]['data'], 0, 5) !== 'POST ' && strpos($this->connections[$key]['data'], "\r\n\r\n")) {
                 $data = $this->connections[$key]['data'];
                 $this->connections[$key]['data'] = '';
-                $data = $this->parseRequest($data);
+                $data = array($this->parseRequest($data));
                 $ok = true;
             } elseif(substr($this->connections[$key]['data'], 0, 5) === 'POST ') {
                 $data = $this->parseRequest($this->connections[$key]['data']);
                 if (!empty($data['headers']['Content-Length']) && strlen($data['content']) >= $data['headers']['Content-Length']) {
                     $this->connections[$key]['data'] = '';
+                    $data = array($data);
                     $ok = true;
                 } else {
                     echo 'waiting for more post content..., GOT '.strlen($data['content']).' NEED '.$data['headers']['Content-Length']."\n";
@@ -399,16 +403,16 @@ class PhpLiveServer {
             }
         }
         //echo '============================='."\n".$key."\n".'============================='."\n".$data['raw']."\n=============================\n\n";
-        if ($data['action']) {
-            $this->connections[$key]['requestAction'] = $data['action'];
-            $this->connections[$key]['requestHeaders'] = $data['headers'];
-            //echo "PROCESSING ".$data['action']." FOR ".$key."\n";
-            if (!$this->call(strtoupper($data['method']).' request', $key, $data) && !$this->call(strtoupper($data['method']).' '.$data['action'], $key, $data)) {
-                $this->call('unhandledRequest', $key, $data);
-            }
+        foreach ($data as $currentData) {
+            if ($currentData['action']) {
+                $this->connections[$key]['requestAction'] = $currentData['action'];
+                $this->connections[$key]['requestHeaders'] = $currentData['headers'];
+                //echo "PROCESSING ".$data['action']." FOR ".$key."\n";
+                if (!$this->call(strtoupper($currentData['method']).' request', $key, $currentData) && !$this->call(strtoupper($currentData['method']).' '.$currentData['action'], $key, $currentData)) {
+                    $this->call('unhandledRequest', $key, $currentData);
+                }
 
-        } else {
-            $this->disconnect($key);
+            }
         }
     }
 

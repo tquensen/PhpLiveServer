@@ -9,17 +9,29 @@ date_default_timezone_set('Europe/Berlin');
 
 include_once dirname(__FILE__).'/PhpLiveServer.php';
 include_once dirname(__FILE__).'/PhpLiveChat.php';
+include_once dirname(__FILE__).'/PhpLiveChatMongo.php';
 
 
 $server = new PhpLiveServer(80, '192.168.0.116');
-$server->setAllowedOrigins('http://t3nchat.local');
+$server->setAllowedOrigins(array('http://t3nchat.local', 'http://192.168.0.116'));
 
-$chat = new PhpLiveChat();
+$chat = new PhpLiveChatMongo();
+
+$mongo = new Mongo();
+$chat->setDatabase($mongo->chat);
+
+$chat->addChannel('lounge', 'Willkommen in der t3n Lounge! Have fun :)');
+$chat->addChannel('talk', 'Expertenrunde - heute mit Steve Jobs!');
+$chat->addChannel('offtopic', 'Offtopic - hier kann über alles gequatscht werden.');
 
 $server->addListener('POST /chat/join', array($chat, 'join'));
 $server->addListener('POST /chat/get', array($chat, 'get'));
 $server->addListener('POST /chat/set', array($chat, 'set'));
 $server->addListener('POST /chat/userlist', array($chat, 'getUserList'));
+$server->addListener('POST /chat/channellist', array($chat, 'getChannelList'));
+$server->addListener('POST /chat/joinChannel', array($chat, 'joinChannel'));
+$server->addListener('POST /chat/leaveChannel', array($chat, 'leaveChannel'));
+
 $server->addListener('TIMER /chat/timer', array($chat, 'checkActivity'));
 //$server->addListener('TIMER /chat/timer2', array($chat, 'checkActivity'));
 $server->addListener('disconnect', array($chat, 'disconnect'));
