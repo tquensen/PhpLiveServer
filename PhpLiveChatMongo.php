@@ -41,7 +41,7 @@ class PhpLiveChatMongo extends PhpLiveChat {
 
         $cursor = $this->collection
                     ->find($query, array('time' => 1, 'message' => 1, 'type' => 1, 'channel' => 1))
-                    ->sort(array('time' => -1))->limit(100);
+                    ->sort(array('time' => -1))->limit($this->maxMessages);
         
         $messages = array();
         while( $cursor->hasNext() ) {

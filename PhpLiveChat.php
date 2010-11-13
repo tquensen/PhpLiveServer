@@ -1,10 +1,10 @@
 <?php
 class PhpLiveChat {
-    private $users = array();
-    private $connections = array();
-    private $messages = array();
-    private $maxMessages = 0;
-    private $channels = array();
+    protected $users = array();
+    protected $connections = array();
+    protected $messages = array();
+    protected $maxMessages = 0;
+    protected $channels = array();
 
     public function __construct($maxMessages = 100)
     {

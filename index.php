@@ -124,7 +124,7 @@ form input {
                 $(function() {
                     var chat = {
                         'settings': {
-                            'server': 't3nchat.local/chat/',
+                            'server': '192.168.178.58:8080/chat/',
                             'defaultChannel': 'lounge'
                         },
                         'id': null,

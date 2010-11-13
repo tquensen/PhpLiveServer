@@ -6,23 +6,31 @@ set_time_limit(0);
 ob_implicit_flush();
 date_default_timezone_set('Europe/Berlin');
 
+include_once dirname(__FILE__).'/config.php';
 
 include_once dirname(__FILE__).'/PhpLiveServer.php';
 include_once dirname(__FILE__).'/PhpLiveChat.php';
 include_once dirname(__FILE__).'/PhpLiveChatMongo.php';
 
 
-$server = new PhpLiveServer(80, '192.168.0.116');
-$server->setAllowedOrigins(array('http://t3nchat.local', 'http://192.168.0.116'));
+$server = new PhpLiveServer($serverConfig['port'], $serverConfig['host']);
+$server->setAllowedOrigins($serverConfig['allowedOrigins']);
 
-$chat = new PhpLiveChatMongo();
+if (!empty($serverConfig['mongo'])) {
+    $mongo = new Mongo();
+    $chat = new PhpLiveChatMongo($serverConfig['maxMessages']);
+    $chat->setDatabase($mongo->chat);
 
-$mongo = new Mongo();
-$chat->setDatabase($mongo->chat);
+} else {
+    $chat = new PhpLiveChat($serverConfig['maxMessages']);
+}
 
-$chat->addChannel('lounge', 'Willkommen in der t3n Lounge! Have fun :)');
-$chat->addChannel('talk', 'Expertenrunde - heute mit Steve Jobs!');
-$chat->addChannel('offtopic', 'Offtopic - hier kann über alles gequatscht werden.');
+foreach ($serverConfig['channels'] as $channelName => $channelDescription) {
+    $chat->addChannel($channelName, $channelDescription);
+}
+
+//$chat->addChannel('talk', 'Expertenrunde - heute mit Steve Jobs!');
+//$chat->addChannel('offtopic', 'Offtopic - hier kann über alles gequatscht werden.');
 
 $server->addListener('POST /chat/join', array($chat, 'join'));
 $server->addListener('POST /chat/get', array($chat, 'get'));
@@ -45,4 +53,4 @@ $server->startTimer('/chat/timer', 1000);
 //$server->startTimer('/chat/timer2', 1000);
 
 
-$server->listen() or die('OMFG!');
+$server->listen() or die('listen failed!');
